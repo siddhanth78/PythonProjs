@@ -2,6 +2,7 @@ from multiprocessing import Pool
 import tkinter as tk
 import tkinter.filedialog as fd
 from pathlib import Path
+from pathlib import PurePath
 
 
 def getfiles():
@@ -55,6 +56,17 @@ def toLow(file):
     new_path = Path(dir_, name_)
     old.rename(new_path)
     
+def attachDir(file):
+    folder = PurePath(file[0]).parts
+    dir_ = file[0].parent
+    suffix_ = file[0].suffix
+    name_ =  folder[-2] + "_" + file[0].stem + suffix_
+    old = file[0]
+    new_path = Path(dir_, name_)
+    if Path.exists(new_path):
+        print(f"File {new_path.stem} exists. Skipping.")
+    old.rename(new_path)
+    
 def pool_handler(mode):
     p = Pool(4)
     if mode in "rename":
@@ -69,6 +81,9 @@ def pool_handler(mode):
     elif mode in "lowercase":
         p.map(toLow, files)
         print("Lowercase complete.")
+    elif mode in "attach folder name":
+        p.map(attachDir, files)
+        print("Folder name attached.")
     else:
         print("Invalid command.")
 
