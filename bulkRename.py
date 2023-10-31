@@ -47,6 +47,14 @@ def toCap(file):
     new_path = Path(dir_, name_)
     old.rename(new_path)
     
+def toLow(file):
+    dir_ = file[0].parent
+    suffix_ = file[0].suffix
+    name_ = file[0].stem.lower() + suffix_
+    old = file[0]
+    new_path = Path(dir_, name_)
+    old.rename(new_path)
+    
 def pool_handler(mode):
     p = Pool(4)
     if mode in "rename":
@@ -58,6 +66,11 @@ def pool_handler(mode):
     elif mode in "capitalize":
         p.map(toCap, files)
         print("Capitalization complete.")
+    elif mode in "lowercase":
+        p.map(toLow, files)
+        print("Lowercase complete.")
+    else:
+        print("Invalid command.")
 
 
 if __name__ == '__main__':
