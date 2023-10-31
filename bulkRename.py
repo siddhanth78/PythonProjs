@@ -1,3 +1,4 @@
+import multiprocessing
 from multiprocessing import Pool
 import tkinter as tk
 import tkinter.filedialog as fd
@@ -68,7 +69,7 @@ def attachDir(file):
     old.rename(new_path)
     
 def pool_handler(mode):
-    p = Pool(4)
+    p = Pool(multiprocessing.cpu_count() - 1)
     if mode in "rename":
         p.map(renameFile, replace)
         print("Rename complete.")
