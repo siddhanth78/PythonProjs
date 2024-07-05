@@ -173,59 +173,59 @@ while capture.isOpened():
             image = cv2.circle(image, (int(mx), int(my)), 5, ccol, 5)
 
         # PEN DOWN
-        if 10 <= point_dist_it <= 60 and state == 'pen down':
+        if 10 <= point_dist_it <= 70 and state == 'pen down':
             mx, my = midpoint(index_tipx, index_tipy, thumb_tipx, thumb_tipy)
             figs.append(('p',(int(mx), int(my)),ccol))
 
         # LINE
-        if 10 <= point_dist_it <= 60 and state == 'line start':
+        if 10 <= point_dist_it <= 90 and state == 'line start':
             mx, my = midpoint(index_tipx, index_tipy, thumb_tipx, thumb_tipy)
             linep1 = (int(mx), int(my))
             state = 'line draw'
 
-        if 10 <= point_dist_it <= 60 and state == 'line draw':
+        if 10 <= point_dist_it <= 90 and state == 'line draw':
             mx, my = midpoint(index_tipx, index_tipy, thumb_tipx, thumb_tipy)
             linep2 = (int(mx), int(my))
             image = cv2.line(image, linep1, linep2, ccol, 3)
             image = cv2.circle(image, (int(mx), int(my)), 5, ccol, 5)
 
-        if point_dist_it > 60 and state == 'line draw':
+        if point_dist_it > 90 and state == 'line draw':
             figs.append(('l',(linep1, linep2),ccol))
             state = 'line start'
 
         # CIRCLE
-        if 10 <= point_dist_it <= 60 and state == 'circle start':
+        if 10 <= point_dist_it <= 90 and state == 'circle start':
             mx, my = midpoint(index_tipx, index_tipy, thumb_tipx, thumb_tipy)
             cc = (int(mx), int(my))
             state = 'circle draw'
 
-        if 10 <= point_dist_it <= 60 and state == 'circle draw':
+        if 10 <= point_dist_it <= 90 and state == 'circle draw':
             mx, my = midpoint(index_tipx, index_tipy, thumb_tipx, thumb_tipy)
             co = (int(mx), int(my))
             rad = int(distance(cc[0], cc[1], co[0], co[1]))
             image = cv2.circle(image, cc, rad, ccol, 3)
 
-        if point_dist_it > 60 and state == 'circle draw':
+        if point_dist_it > 90 and state == 'circle draw':
             figs.append(('c',(cc, rad),ccol))
             state = 'circle start'
 
         # CHECK POS
-        if (60 <= point_dist_im <= 90) and (penup_checkx_s <= index_tipx <= penup_checkx_e) and (55 <= index_tipy <= 130):
+        if (60 <= point_dist_im <= 110) and (penup_checkx_s <= index_tipx <= penup_checkx_e) and (55 <= index_tipy <= 130):
             state = 'pen up'
             fincol = (0,0,0)
 
-        if (60 <= point_dist_im <= 90) and (pendown_checkx_s <= index_tipx <= pendown_checkx_e) and (55 <= index_tipy <= 130):
+        if (60 <= point_dist_im <= 110) and (pendown_checkx_s <= index_tipx <= pendown_checkx_e) and (55 <= index_tipy <= 130):
             state = 'pen down'
             fincol = (255,255,255)
 
-        if (60 <= point_dist_im <= 90) and (clear_checkx_s <= index_tipx <= clear_checkx_e) and (55 <= index_tipy <= 130):
+        if (60 <= point_dist_im <= 110) and (clear_checkx_s <= index_tipx <= clear_checkx_e) and (55 <= index_tipy <= 130):
             figs.clear()
 
-        if (60 <= point_dist_im <= 90) and (line_checkx_s <= index_tipx <= line_checkx_e) and (55 <= index_tipy <= 130):
+        if (60 <= point_dist_im <= 110) and (line_checkx_s <= index_tipx <= line_checkx_e) and (55 <= index_tipy <= 130):
             state = 'line start'
             fincol = (255,255,255)
 
-        if (60 <= point_dist_im <= 90) and (circle_checkx_s <= index_tipx <= circle_checkx_e) and (55 <= index_tipy <= 130):
+        if (60 <= point_dist_im <= 110) and (circle_checkx_s <= index_tipx <= circle_checkx_e) and (55 <= index_tipy <= 130):
             state = 'circle start'
             fincol = (255,255,255)
 
