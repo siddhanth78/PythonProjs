@@ -5,16 +5,23 @@ import time
 import math
 import pyautogui
 import keyboard
+import os
 
 mp_hands = mp.solutions.hands
-hands_model = mp_hands.Hands()
+hands_model = mp_hands.Hands(max_num_hands=1)
 mp_drawing = mp.solutions.drawing_utils
 
 figs = []
 
-state = 'pen up'
+state = 'none'
+currstate = state
 fincol = (0,0,0)
 currcol = [255,255,255]
+
+count = 0
+dots = 0
+
+currdir = os.getcwd()
 
 capture = cv2.VideoCapture(0)
 
@@ -23,44 +30,13 @@ size = pyautogui.size()
 screenx = size.width
 screeny = size.height
 
-penup_pos = (int(0.01 * screenx), int(0.05 * screeny))
-pendown_pos = (int(0.2 * screenx), int(0.05 * screeny))
-clear_pos = (int(0.4 * screenx), int(0.05 * screeny))
-line_pos = (int(0.6 * screenx), int(0.05 * screeny))
-circle_pos = (int(0.8 * screenx), int(0.05 * screeny))
-state_pos = (int(0.01 * screenx), int(0.1 * screeny))
+index_pos = (int(0.01 * screenx), int(0.75 * screeny))
+thumb_pos = (int(0.01 * screenx), int(0.8 * screeny))
+middle_pos = (int(0.01 * screenx), int(0.85 * screeny))
+it_pos = (int(0.01 * screenx), int(0.9 * screeny))
+im_pos = (int(0.01 * screenx), int(0.95 * screeny))
 
-penup_startx = int(0.01 * screenx)
-penup_endx = int(0.075 * screenx)
-
-penup_checkx_s = int(screenx * 0.9)
-penup_checkx_e = int(screenx * 0.95)
-
-pendown_startx = int(0.2 * screenx)
-pendown_endx = int(0.28 * screenx)
-
-pendown_checkx_s = int(screenx * 0.7)
-pendown_checkx_e = int(screenx * 0.8)
-
-clear_startx = int(0.4 * screenx)
-clear_endx = int(0.45 * screenx)
-
-clear_checkx_s = int(screenx * 0.55)
-clear_checkx_e = int(screenx * 0.65)
-
-line_startx = int(0.6 * screenx)
-line_endx = int(0.65 * screenx)
-
-line_checkx_s = int(screenx * 0.37)
-line_checkx_e = int(screenx * 0.42)
-
-circle_startx = int(0.8 * screenx)
-circle_endx = int(0.85 * screenx)
-
-circle_checkx_s = int(screenx * 0.15)
-circle_checkx_e = int(screenx * 0.22)
-
-buttonsy = int(0.055 * screeny)
+angle_pos = (int(0.01 * screenx), int(0.7 * screeny))
 
 canvas = np.array([[0,0], [0, screeny],
                    [screenx, screeny], [screenx, 0]])
@@ -113,6 +89,47 @@ def white():
     currcol[0] = 255
     currcol[1] = 255
     currcol[2] = 255
+    
+def drawFigs(figs, image):
+    fig_arr = np.array(figs)
+        
+    for i in range(len(fig_arr)):
+        if fig_arr[i][0] == 'p':
+            for j in range(len(fig_arr[i][1])):
+                image = cv2.circle(image, (fig_arr[i][1][j][0][0], fig_arr[i][1][j][0][1]), 3, fig_arr[i][1][j][1], -1)
+                if j+1 < len(fig_arr[i][1]):
+                    image = cv2.line(image, (fig_arr[i][1][j][0][0], fig_arr[i][1][j][0][1]),
+                                        (fig_arr[i][1][j+1][0][0], fig_arr[i][1][j+1][0][1]), fig_arr[i][1][j][1], 3)
+        elif fig_arr[i][0] == 'l':
+            image = cv2.line(image, fig_arr[i][1][0], fig_arr[i][1][1], fig_arr[i][2], 3)
+        elif fig_arr[i][0] == 'c':
+            image = cv2.circle(image, fig_arr[i][1][0], fig_arr[i][1][1], fig_arr[i][2], 3)
+                
+    figs = fig_arr.tolist()
+    
+    return figs, image
+    
+import math
+
+def getSlope(x1, y1, x2, y2):
+    if x1 == x2:
+        x1 = x2+1
+        y2 = y1
+    slope = (y2 - y1) / (x2 - x1)
+    return slope
+
+def getAngle(m1, m2):
+    
+    tan_theta = (m1 - m2) / (1 + m1 * m2)
+
+    theta_radians = math.atan(tan_theta)
+
+    theta_degrees = math.degrees(theta_radians)
+    
+    if theta_degrees < 0:
+        theta_degrees += 180
+    
+    return theta_degrees
 
 keyboard.add_hotkey('u', undo, suppress=True, trigger_on_release=True)
 keyboard.add_hotkey('r', red, suppress=True, trigger_on_release=True)
@@ -136,7 +153,7 @@ while capture.isOpened():
 
         image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
 
-        image = cv2.fillPoly(image, [canvas], (0,0,0))
+        #image = cv2.fillPoly(image, [canvas], (0,0,0))
 
         # GET INDEX, THUMB, AND MIDDLE
         if results.multi_hand_landmarks:
@@ -145,122 +162,196 @@ while capture.isOpened():
 
                 index_tipx = hand_landmarks.landmark[mp_hands.HandLandmark.INDEX_FINGER_TIP].x * screenx
                 index_tipy = hand_landmarks.landmark[mp_hands.HandLandmark.INDEX_FINGER_TIP].y * screeny
+                
+                index_mcpx = hand_landmarks.landmark[mp_hands.HandLandmark.INDEX_FINGER_MCP].x * screenx
+                index_mcpy = hand_landmarks.landmark[mp_hands.HandLandmark.INDEX_FINGER_MCP].y * screeny
 
                 thumb_tipx = hand_landmarks.landmark[mp_hands.HandLandmark.THUMB_TIP].x * screenx
                 thumb_tipy = hand_landmarks.landmark[mp_hands.HandLandmark.THUMB_TIP].y * screeny
+                
+                thumb_mcpx = hand_landmarks.landmark[mp_hands.HandLandmark.THUMB_MCP].x * screenx
+                thumb_mcpy = hand_landmarks.landmark[mp_hands.HandLandmark.THUMB_MCP].y * screeny
 
                 middle_tipx = hand_landmarks.landmark[mp_hands.HandLandmark.MIDDLE_FINGER_TIP].x * screenx
                 middle_tipy = hand_landmarks.landmark[mp_hands.HandLandmark.MIDDLE_FINGER_TIP].y * screeny
         else:
-            index_tipx, index_tipy, thumb_tipx, thumb_tipy,middle_tipx, middle_tipy = 0,0,0,0,0,0
+            index_tipx, index_tipy, index_mcpx, index_mcpy, thumb_tipx, thumb_tipy, thumb_mcpx, thumb_mcpy, middle_tipx, middle_tipy = 0,0,0,0,0,0,0,0,0,0
 
-        point_dist_it = distance(index_tipx, index_tipy, thumb_tipx, thumb_tipy)
-        point_dist_im = distance(index_tipx, index_tipy, middle_tipx, middle_tipy)
+        m1 = getSlope(thumb_tipx, thumb_tipy, thumb_mcpx, thumb_mcpy)
+        m2 = getSlope(index_tipx, index_tipy, thumb_mcpx, thumb_mcpy)
+        theta_deg = getAngle(m1, m2)
+        
+        m3 = getSlope(middle_tipx, middle_tipy, index_mcpx, index_mcpy)
+        m4 = getSlope(index_tipx, index_tipy, index_mcpx, index_mcpy)
+        theta_deg_2 = getAngle(m3, m4)
+        theta_deg_2 = 180 - theta_deg_2
 
         ccol = (currcol[0],currcol[1],currcol[2])
-
+        
+        mx, my = midpoint(index_tipx, index_tipy, thumb_tipx, thumb_tipy)
+        mx, my = int(mx), int(my)
+        
+        # MODES
+        if state == 'none':
+            if 85 <= theta_deg <= 95 and theta_deg_2 > 130:
+                state = 'line? [ ]'
+                dots, count = 0, 0
+            elif 85 <= theta_deg <= 95 and theta_deg_2 <= 20:
+                state = 'circle? [ ]'
+                dots, count = 0, 0
+            elif 1 <= theta_deg <= 10:
+                state = 'pen? [ ]'
+                dots, count = 0, 0
+        
+        # SWITCH TO LINE
+        if ('line?' in state) and 85 <= theta_deg <= 95 and theta_deg_2 > 130:
+            count += 1
+            if count%30 == 0:
+                dots += 1
+            state = 'line? [' + '*'*dots + ' '*(1-dots) + ']'
+            if dots >= 2:
+                state = 'line'
+                currstate = 'line'
+                
+        if ('line?' in state) and (theta_deg < 85 or theta_deg > 95):
+            if dots < 2:
+                state = currstate
+                
+        # SWITCH TO CIRCLE
+        if ('circle?' in state) and 85 <= theta_deg <= 95 and theta_deg_2 <= 20:
+            count += 1
+            if count%30 == 0:
+                dots += 1
+            state = 'circle? [' + '*'*dots + ' '*(1-dots) + ']'
+            if dots >= 2:
+                state = 'circle [ ]'
+                currstate = 'circle'
+                count, dots = 0, 0
+                
+        if ('circle?' in state) and (theta_deg < 85 or theta_deg > 95):
+            if dots < 2:
+                state = currstate
+                
+        if ('circle [' in state):
+            count += 1
+            if count%30 == 0:
+                dots += 1
+            state = 'circle [' + '*'*dots + ' '*(1-dots) + ']'
+            if dots >= 2:
+                state = 'circle'
+        
+        # SWITCH TO PEN
+        if ('pen?' in state) and 1 <= theta_deg <= 10:
+            count += 1
+            if count%30 == 0:
+                dots += 1
+            state = 'pen? [' + '*'*dots + ' '*(1-dots) + ']'
+            if dots >= 2:
+                state = 'pen [ ]'
+                currstate = 'pen'
+                count, dots = 0, 0
+                
+        if ('pen?' in state) and theta_deg > 10:
+            if dots < 2:
+                state = currstate
+                
+        if ('pen [' in state):
+            count += 1
+            if count%30 == 0:
+                dots += 1
+            state = 'pen [' + '*'*dots + ' '*(1-dots) + ']'
+            if dots >= 2:
+                state = 'pen'
+        
+        # SWITCH TO NONE
+        if ('none' not in state) and ('circle?' not in state) and theta_deg_2 <= 20 and 85 <= theta_deg <= 95:
+            state = 'none? [  ]'
+            dots, count, mflag = 0, 0, 0
+                
+        if ('none?' in state) and theta_deg_2 <= 20 and 1 <= theta_deg <= 20:
+            mflag = 1
+            count += 1
+            if count%30 == 0:
+                dots += 1
+            state = 'none? [' + '*'*dots + ' '*(1-dots) + ']'
+            if dots >= 2:
+                state = 'none'
+                currstate = 'none'
+                
+        if ('none?' in state) and theta_deg > 20 and mflag == 1:
+            if dots < 2:
+                state = currstate
+                
         # POINTERS
-        if state == 'pen down':
-            mx, my = midpoint(index_tipx, index_tipy, thumb_tipx, thumb_tipy)
-            image = cv2.circle(image, (int(mx), int(my)), 5, ccol, 5)
+        if state == 'pen':
+            image = cv2.circle(image, (mx, my), 5, ccol, 5)
             
-        if state == 'line start':
-            mx, my = midpoint(index_tipx, index_tipy, thumb_tipx, thumb_tipy)
-            image = cv2.circle(image, (int(mx), int(my)), 5, ccol, 5)
+        if state == 'line':
+            image = cv2.circle(image, (mx, my), 5, ccol, 5)
 
-        if state == 'circle start':
-            mx, my = midpoint(index_tipx, index_tipy, thumb_tipx, thumb_tipy)
-            image = cv2.circle(image, (int(mx), int(my)), 5, ccol, 5)
+        if state == 'circle':
+            image = cv2.circle(image, (mx, my), 5, ccol, 5)
 
-        # PEN DOWN
-        if 10 <= point_dist_it <= 70 and state == 'pen down':
-            mx, my = midpoint(index_tipx, index_tipy, thumb_tipx, thumb_tipy)
-            figs.append(('p',(int(mx), int(my)),ccol))
+        # PEN
+        if 1 <= theta_deg <= 20 and state == 'pen':
+            state = 'pen start'
+            pen_arr = []
+        
+        if state == 'pen start':
+            pen_arr.append(((mx, my),ccol))
+            
+        if (theta_deg > 20) and state == 'pen start':
+            figs.append(('p', pen_arr))
+            state = 'pen'
 
         # LINE
-        if 10 <= point_dist_it <= 90 and state == 'line start':
-            mx, my = midpoint(index_tipx, index_tipy, thumb_tipx, thumb_tipy)
-            linep1 = (int(mx), int(my))
+        if 1 <= theta_deg <= 10 and state == 'line':
+            linep1 = (mx, my)
             state = 'line draw'
 
-        if 10 <= point_dist_it <= 90 and state == 'line draw':
-            mx, my = midpoint(index_tipx, index_tipy, thumb_tipx, thumb_tipy)
-            linep2 = (int(mx), int(my))
+        if state == 'line draw':
+            linep2 = (mx, my)
             image = cv2.line(image, linep1, linep2, ccol, 3)
-            image = cv2.circle(image, (int(mx), int(my)), 5, ccol, 5)
+            image = cv2.circle(image, (mx, my), 5, ccol, 5)
 
-        if point_dist_it > 90 and state == 'line draw':
+        if theta_deg > 10 and theta_deg < 150 and state == 'line draw':
             figs.append(('l',(linep1, linep2),ccol))
-            state = 'line start'
+            state = 'line'
 
         # CIRCLE
-        if 10 <= point_dist_it <= 90 and state == 'circle start':
-            mx, my = midpoint(index_tipx, index_tipy, thumb_tipx, thumb_tipy)
-            cc = (int(mx), int(my))
+        if 1 <= theta_deg <= 10 and state == 'circle':
+            cc = (mx, my)
             state = 'circle draw'
 
-        if 10 <= point_dist_it <= 90 and state == 'circle draw':
-            mx, my = midpoint(index_tipx, index_tipy, thumb_tipx, thumb_tipy)
-            co = (int(mx), int(my))
+        if state == 'circle draw':
+            co = (mx, my)
             rad = int(distance(cc[0], cc[1], co[0], co[1]))
             image = cv2.circle(image, cc, rad, ccol, 3)
 
-        if point_dist_it > 90 and state == 'circle draw':
+        if theta_deg > 10 and state == 'circle draw':
             figs.append(('c',(cc, rad),ccol))
-            state = 'circle start'
-
-        # CHECK POS
-        if (60 <= point_dist_im <= 110) and (penup_checkx_s <= index_tipx <= penup_checkx_e) and (55 <= index_tipy <= 130):
-            state = 'pen up'
-            fincol = (0,0,0)
-
-        if (60 <= point_dist_im <= 110) and (pendown_checkx_s <= index_tipx <= pendown_checkx_e) and (55 <= index_tipy <= 130):
-            state = 'pen down'
-            fincol = (255,255,255)
-
-        if (60 <= point_dist_im <= 110) and (clear_checkx_s <= index_tipx <= clear_checkx_e) and (55 <= index_tipy <= 130):
-            figs.clear()
-
-        if (60 <= point_dist_im <= 110) and (line_checkx_s <= index_tipx <= line_checkx_e) and (55 <= index_tipy <= 130):
-            state = 'line start'
-            fincol = (255,255,255)
-
-        if (60 <= point_dist_im <= 110) and (circle_checkx_s <= index_tipx <= circle_checkx_e) and (55 <= index_tipy <= 130):
-            state = 'circle start'
-            fincol = (255,255,255)
+            state = 'circle'
 
         # DRAW
-        image = cv2.circle(image, (int(index_tipx), int(index_tipy)), 5, fincol, 5)
-        image = cv2.circle(image, (int(thumb_tipx), int(thumb_tipy)), 5, fincol, 5)
-        image = cv2.circle(image, (int(middle_tipx), int(middle_tipy)), 5, fincol, 5)
-
+        #image = cv2.circle(image, (int(index_tipx), int(index_tipy)), 5, fincol, 5)
+        #image = cv2.circle(image, (int(thumb_tipx), int(thumb_tipy)), 5, fincol, 5)
+        #image = cv2.circle(image, (int(middle_tipx), int(middle_tipy)), 5, fincol, 5)
         
-        for f in figs:
-            if f[0] == 'p':
-                image = cv2.circle(image, (f[1][0], f[1][1]), 3, f[2], 3)
-            elif f[0] == 'l':
-                image = cv2.line(image, f[1][0], f[1][1], f[2], 3)
-            elif f[0] == 'c':
-                image = cv2.circle(image, f[1][0], f[1][1], f[2], 3)
+        #image = cv2.line(image, (int(index_tipx), int(index_tipy)), (int(thumb_mcpx), int(thumb_mcpy)), fincol, 5)
+        #image = cv2.line(image, (int(thumb_tipx), int(thumb_tipy)), (int(thumb_mcpx), int(thumb_mcpy)), fincol, 5)
+        
+        figs, image = drawFigs(figs, image)
 
         flip_image = cv2.flip(image,1)
 
-        flip_image = cv2.line(flip_image, (penup_startx, buttonsy), (penup_endx, buttonsy), (255, 0, 0), 3)
-        flip_image = cv2.line(flip_image, (pendown_startx, buttonsy), (pendown_endx, buttonsy), (255, 0, 0), 3)
-        flip_image = cv2.line(flip_image, (clear_startx, buttonsy), (clear_endx, buttonsy), (255, 0, 0), 3)
-        flip_image = cv2.line(flip_image, (line_startx, buttonsy), (line_endx, buttonsy), (255, 0, 0), 3)
-        flip_image = cv2.line(flip_image, (circle_startx, buttonsy), (circle_endx, buttonsy), (255, 0, 0), 3)
-
         # TEXT
-        #cv2.putText(flip_image, f'{penup_startx:.2f}, {penup_endx:.2f}', (10, 160), cv2.FONT_HERSHEY_COMPLEX, 1, (0, 255, 0), 2)
-        cv2.putText(flip_image, f'State: {state}', state_pos, cv2.FONT_HERSHEY_COMPLEX, 1, (0, 255, 0), 2)
-        cv2.putText(flip_image, 'pen up', penup_pos, cv2.FONT_HERSHEY_COMPLEX, 1, (0, 255, 0), 2)
-        cv2.putText(flip_image, 'pen down', pendown_pos, cv2.FONT_HERSHEY_COMPLEX, 1, (0, 255, 0), 2)
-        cv2.putText(flip_image, 'clear all', clear_pos, cv2.FONT_HERSHEY_COMPLEX, 1, (0, 255, 0), 2)
-        cv2.putText(flip_image, 'line', line_pos, cv2.FONT_HERSHEY_COMPLEX, 1, (0, 255, 0), 2)
-        cv2.putText(flip_image, 'circle', circle_pos, cv2.FONT_HERSHEY_COMPLEX, 1, (0, 255, 0), 2)
+        cv2.putText(flip_image, f'Angle: {theta_deg:.2f}, {theta_deg_2:.2f}', angle_pos, cv2.FONT_HERSHEY_COMPLEX, 1, (0, 255, 0), 2)
+        cv2.putText(flip_image, f'Index: {index_tipx:.2f}, {index_tipy:.2f}', index_pos, cv2.FONT_HERSHEY_COMPLEX, 1, (0, 255, 0), 2)
+        cv2.putText(flip_image, f'Thumb: {thumb_tipx:.2f}, {thumb_tipy:.2f}', thumb_pos, cv2.FONT_HERSHEY_COMPLEX, 1, (0, 255, 0), 2)
+        cv2.putText(flip_image, f'Middle: {middle_tipx:.2f}, {middle_tipy:.2f}', middle_pos, cv2.FONT_HERSHEY_COMPLEX, 1, (0, 255, 0), 2)
+        cv2.putText(flip_image, f'State: {state}', (screenx-int(middle_tipx), int(middle_tipy)-20), cv2.FONT_HERSHEY_COMPLEX, 1, (0, 255, 0), 2)
 
-        cv2.imshow("Hand Landmarks", flip_image)
+        cv2.imshow("DrawingCV2", flip_image)
 
         if cv2.waitKey(5) & 0xFF == ord('q'):
             break
