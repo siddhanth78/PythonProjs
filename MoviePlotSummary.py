@@ -2,79 +2,87 @@ import requests
 from bs4 import BeautifulSoup
 from googlesearch import search
 
-while True:
-    q = input("Search: ")
+def get_plot_url(query):
+    query_plot = query + " imdb plot"
+    for res in search(query_plot, stop=20, pause=0.1):
+        if "plotsummary" in res:
+            return res
+    return None
 
-    query_plot = q + " imdb plot"
-    query_rating = q + "imdb"
+def get_rating_url(query, plot_url):
+    query_rating = query + " imdb"
+    plot_id = plot_url.split("/")[-3]
+    for res in search(query_rating, num=2, stop=20, pause=0.1):
+        if plot_id in res:
+            return res
+    return None
 
-    search_res = []
-
+def fetch_and_parse(url):
     try:
-        for res in search(query_plot, stop=20, pause = 0.001):
-            print(res)
-            if "plotsummary" in res:
-                plot = res
-                break
-                
-        plot_li = plot.split("/")
+        session = requests.Session()
+        response = session.get(url, headers={"User-Agent": "Chrome"})
+        response.raise_for_status()
+        return BeautifulSoup(response.content, "html.parser")
+    except requests.RequestException as e:
+        print(f"Request failed: {e}")
+        return None
 
-        for res in search(query_rating, num = 2, stop=20, pause = 0.001):
-            print(res)
-            if plot_li[-3] in res:
-                rating = res
-                break
-
-    except:
-        print("Error\n")
-    else:
-        print()
+def extract_rating(soup):
+    try:
+        rating_tag = soup.find("span", {"itemprop": "ratingValue"})
+        rating = rating_tag.text if rating_tag else "N/A"
         
-        try:
-            
-            session_plot = requests.Session()
-            sessp = session_plot.get(plot, headers={"User-Agent": "Chrome"})
-
-            session_rating = requests.Session()
-            sessr = session_rating.get(rating, headers={"User-Agent": "Chrome"})
-
-            soupp = BeautifulSoup(sessp.content, "html.parser")
-            soupr = BeautifulSoup(sessr.content, "html.parser")
-
-            sr = soupr.find("div", class_="sc-bde20123-0 gtEgaf")
-
-            contentr = sr.find_all("span", class_="sc-bde20123-1 iZlgcd")
-            num = sr.find_all("div", class_="sc-bde20123-3 bjjENQ")
-
-            title = soupp.title
-
-            title_li = [t.text for t in title][0].split("-")
-            
-            title_fin = ""
-
-            for tl in title_li:
-                if tl == " Plot ":
-                    break
-                title_fin += tl + "-"
-                
-            print(title_fin[:-1])
-                
-            print(
-                f"Rating: {[cr.text for cr in contentr][0]} ({[n.text for n in num][0]})\n"
-            )
-
-            sp = soupp.find("div", class_="sc-f65f65be-0 fVkLRr")
-
-            contentp = sp.find_all("li", role="presentation")
-
-            sums = []
-
-            for cp in contentp:
-                sums.append(cp.text)
-
-            print(max(sums, key=len) + "\n")
+        review_count_tag = soup.find("span", {"itemprop": "ratingCount"})
+        num_reviews = review_count_tag.text if review_count_tag else "N/A"
         
-        except:
-            print("Error\n")
-        else:
-            pass
+        return rating, num_reviews
+    except (AttributeError, IndexError):
+        return None, None
+
+def extract_plot(soup):
+    try:
+        plot_tag = soup.find("div", {"id": "summary_text"})
+        plot_summary = plot_tag.text.strip() if plot_tag else "Plot summary not found"
+        return plot_summary
+    except AttributeError:
+        return None
+
+def main():
+    while True:
+        query = input("Search: ")
+
+        plot_url = get_plot_url(query)
+        if not plot_url:
+            print("Plot URL not found")
+            continue
+
+        rating_url = get_rating_url(query, plot_url)
+        if not rating_url:
+            print("Rating URL not found")
+            continue
+
+        plot_soup = fetch_and_parse(plot_url)
+        rating_soup = fetch_and_parse(rating_url)
+
+        if not plot_soup or not rating_soup:
+            print("Failed to fetch and parse URLs")
+            continue
+
+        rating, num_reviews = extract_rating(rating_soup)
+        plot_summary = extract_plot(plot_soup)
+
+        if not rating or not num_reviews:
+            print("Failed to extract rating information")
+            continue
+
+        if not plot_summary:
+            print("Failed to extract plot summary")
+            continue
+
+        title = plot_soup.title.string.split(" - ")[0]
+        print(f"\n{title}")
+        print(f"Rating: {rating} ({num_reviews})")
+        print(f"Plot Summary: {plot_summary}\n")
+
+if __name__ == "__main__":
+    main()
