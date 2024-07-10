@@ -1,4 +1,3 @@
-import mediapipe as mp
 from im_geometry import getAngle, getSlope
 
 def get_face(pl_list):

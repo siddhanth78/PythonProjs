@@ -14,7 +14,7 @@ mp_pose = mp.solutions.pose
 pose_model = mp_pose.Pose()
 mp_drawing = mp.solutions.drawing_utils
 
-capture = cv2.VideoCapture(1)
+capture = cv2.VideoCapture(0)
 
 size = pyautogui.size()
 
@@ -93,8 +93,6 @@ while capture.isOpened():
         jpg_as_text = base64.b64encode(buffer).decode()
         print(jpg_as_text)
         sys.stdout.flush()
-        
-        time.sleep(0.033)
 
         if cv2.waitKey(5) & 0xFF == ord('q'):
             break
