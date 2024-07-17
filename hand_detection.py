@@ -45,6 +45,8 @@ def predict_hand(hl_list, model):
     else:
         gesture = 'none'
     return gesture
+    
+count = 0
 
 while capture.isOpened():
     ret, frame = capture.read()
@@ -52,6 +54,9 @@ while capture.isOpened():
         frame = cv2.resize(frame, (screenx, screeny))
 
         image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        
+        count += 1
+        count = count%30
 
         image.flags.writeable = False
         results = hands_model.process(image)
@@ -70,8 +75,8 @@ while capture.isOpened():
         if len(hl_list) < 21:
             gest = 'none'
         else:
-
-            gest = predict_hand(hl_list, model)
+            if count%9 == 0:
+                gest = predict_hand(hl_list, model)
         
         flip_image = cv2.flip(image,1)
 
